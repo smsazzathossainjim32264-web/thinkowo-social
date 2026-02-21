@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  CREATOR
+  ADMIN
+}
+
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+  CREATOR_PRO
+}
+
+enum TxType {
+  MINT
+  REWARD
+  TRANSFER
+  SUBSCRIPTION
+  TIP
+}
+
+model User {
+  id              String            @id @default(cuid())
+  email           String            @unique
+  username        String            @unique
+  passwordHash    String
+  bio             String?
+  avatarUrl       String?
+  coverUrl        String?
+  socialLinks     Json?
+  isVerified      Boolean           @default(false)
+  role            Role              @default(USER)
+  tier            SubscriptionTier  @default(FREE)
+  owocoinBalance  Int               @default(0)
+  createdAt       DateTime          @default(now())
+
+  posts           Post[]
+  comments        Comment[]
+  followers       Follow[]          @relation("followers")
+  following       Follow[]          @relation("following")
+  walletTxSent    WalletTransaction[] @relation("txFrom")
+  walletTxRecv    WalletTransaction[] @relation("txTo")
+  stories         Story[]
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower    User @relation("following", fields: [followerId], references: [id])
+  following   User @relation("followers", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+}
+
+model Post {
+  id          String    @id @default(cuid())
+  authorId    String
+  content     String
+  mediaUrl    String?
+  mediaType   String?
+  hashtags    String[]
+  isPaid      Boolean   @default(false)
+  coinPrice   Int       @default(0)
+  likeCount   Int       @default(0)
+  shareCount  Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  author      User      @relation(fields: [authorId], references: [id])
+  comments    Comment[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  post      Post @relation(fields: [postId], references: [id])
+  author    User @relation(fields: [authorId], references: [id])
+}
+
+model Story {
+  id          String   @id @default(cuid())
+  authorId    String
+  mediaUrl    String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  author      User @relation(fields: [authorId], references: [id])
+}
+
+model WalletTransaction {
+  id          String   @id @default(cuid())
+  fromUserId  String?
+  toUserId    String?
+  type        TxType
+  amount      Int
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  fromUser    User? @relation("txFrom", fields: [fromUserId], references: [id])
+  toUser      User? @relation("txTo", fields: [toUserId], references: [id])
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  senderId    String
+  receiverId  String
+  content     String
+  attachmentUrl String?
+  seenAt      DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String
+  payload     Json
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
